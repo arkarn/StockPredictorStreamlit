@@ -1,4 +1,5 @@
 yfinance
 plotly
 streamlit
-fbprophet
+holidays==0.24
+prophet==1.1.2
