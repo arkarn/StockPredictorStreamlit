@@ -29,21 +29,22 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Title and Description
-st.title("📈 Stock Insight Pro: Advanced Market Analysis")
-st.markdown("### Your Comprehensive Stock Performance Dashboard")
+st.title("📈 Stock Insight Pro")
+st.markdown("### Comprehensive Market Analysis Dashboard")
 
 # Sidebar for Inputs
-st.sidebar.header("Stock Analysis Parameters")
+st.sidebar.header("Stock Analysis")
 ticker = st.sidebar.text_input("Enter Stock Ticker", "AAPL")
-start_date = st.sidebar.date_input("Start Date", datetime.now() - timedelta(days=365))
-end_date = st.sidebar.date_input("End Date", datetime.now())
 prediction_years = st.sidebar.slider("Forecast Years", 1, 5, 3)
 
 # Fetch Stock Data
 @st.cache_data
-def load_stock_data(ticker, start, end):
+def load_stock_data(ticker):
     try:
-        stock_data = yf.download(ticker, start=start, end=end)
+        # Default to 5 years of historical data up to today
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=5*365)
+        stock_data = yf.download(ticker, start=start_date, end=end_date)
         return stock_data
     except Exception as e:
         st.error(f"Error fetching data: {e}")
@@ -61,11 +62,11 @@ def get_company_info(ticker):
         return None
 
 # Load Data
-stock_data = load_stock_data(ticker, start_date, end_date)
+stock_data = load_stock_data(ticker)
 company_info = get_company_info(ticker)
 
 if stock_data is not None and not stock_data.empty:
-    # Layout Columns
+    # Performance Metrics Columns
     col1, col2, col3 = st.columns(3)
     
     # Performance Metrics
@@ -96,6 +97,13 @@ if stock_data is not None and not stock_data.empty:
     fig.update_layout(title=f'{ticker} Stock Price', xaxis_title='Date', yaxis_title='Price')
     st.plotly_chart(fig, use_container_width=True)
     
+    # Trading Volume Visualization
+    st.subheader("Trading Volume")
+    volume_fig = go.Figure()
+    volume_fig.add_trace(go.Bar(x=stock_data.index, y=stock_data['Volume'], name='Volume'))
+    volume_fig.update_layout(title=f'{ticker} Trading Volume', xaxis_title='Date', yaxis_title='Volume')
+    st.plotly_chart(volume_fig, use_container_width=True)
+    
     # Forecast Section
     st.subheader("Price Forecast using Prophet")
     forecast_data = stock_data[['Close']].reset_index()
@@ -110,29 +118,6 @@ if stock_data is not None and not stock_data.empty:
     # Forecast Visualization
     forecast_fig = plot_plotly(model, forecast)
     st.plotly_chart(forecast_fig, use_container_width=True)
-    
-    # Confidence Interval Visualization
-    st.subheader("Forecast Uncertainty")
-    uncertainty_fig = go.Figure()
-    uncertainty_fig.add_trace(go.Scatter(
-        x=forecast['ds'], 
-        y=forecast['yhat'], 
-        name='Forecast',
-        line=dict(color='blue')
-    ))
-    uncertainty_fig.add_trace(go.Scatter(
-        x=forecast['ds'], 
-        y=forecast['yhat_upper'], 
-        name='Upper Bound',
-        line=dict(color='red', dash='dot')
-    ))
-    uncertainty_fig.add_trace(go.Scatter(
-        x=forecast['ds'], 
-        y=forecast['yhat_lower'], 
-        name='Lower Bound',
-        line=dict(color='green', dash='dot')
-    ))
-    st.plotly_chart(uncertainty_fig, use_container_width=True)
     
 else:
     st.error("Unable to fetch stock data. Please check the ticker symbol.")
