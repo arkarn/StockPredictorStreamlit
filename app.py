@@ -39,6 +39,15 @@ ta_options = st.sidebar.multiselect("Technical Indicators", ["SMA 50", "SMA 200"
 # Sentiment API Configuration (Using StockGeist from search results:cite[4])
 STOCKGEIST_API_KEY = os.environ.get('STOCKGEIST_API_KEY')  # Get from stockgeist.ai
 
+# Date Range Calculation
+def get_date_range(period):
+    today = datetime.now()
+    if period == "1M": return today - timedelta(days=30)
+    elif period == "6M": return today - timedelta(days=180)
+    elif period == "YTD": return datetime(today.year, 1, 1)
+    elif period == "1Y": return today - timedelta(days=365)
+    else: return today - timedelta(days=5*365)
+        
 # Fetch Data Functions
 @st.cache_data
 def load_stock_data(ticker, period):
