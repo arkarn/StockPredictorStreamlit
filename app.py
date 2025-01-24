@@ -36,8 +36,10 @@ ticker = st.sidebar.text_input("Stock Ticker", "AAPL").upper()
 period = st.sidebar.selectbox("Historical Period", ["1M", "6M", "YTD", "1Y", "5Y"], index=4)
 ta_options = st.sidebar.multiselect("Technical Indicators", ["SMA 50", "SMA 200", "RSI", "MACD", "Bollinger Bands"])
 
+print("os env", os.environ.get("STOCKGEIST_API_KEY"))
+print("st secret", st.secrets['STOCKGEIST_API_KEY'])
 # Sentiment API Configuration (Using StockGeist from search results:cite[4])
-STOCKGEIST_API_KEY = 'ads'#os.environ.get('STOCKGEIST_API_KEY')  # Get from stockgeist.ai
+STOCKGEIST_API_KEY = st.secrets['STOCKGEIST_API_KEY']  # Get from stockgeist.ai
 
 # Date Range Calculation
 def get_date_range(period):
