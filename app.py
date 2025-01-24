@@ -70,6 +70,7 @@ def get_social_sentiment(ticker):
         st.error(f"Error fetching sentiment: {e}")
         return None
 
+# Modified Social Feed Handling
 def get_recent_tweets(ticker, limit=15):
     tweets = []
     try:
@@ -85,7 +86,7 @@ def get_recent_tweets(ticker, limit=15):
             })
     except Exception as e:
         st.error(f"Tweet fetch error: {e}")
-    return pd.DataFrame(tweets)
+    return pd.DataFrame(tweets) if tweets else pd.DataFrame()
 
 # Technical Indicators (Enhanced)
 def calculate_technical_indicators(data, ta_options):
@@ -128,16 +129,28 @@ if stock_data is not None:
         col1, col2, col3 = st.columns(3)
         with col1:
             st.markdown('<div class="metric-container">', unsafe_allow_html=True)
-            st.metric("Current Price", f"${stock_data['Close'][-1]:.2f}")
+            # Fix deprecated index access
+            st.metric("Current Price", f"${stock_data['Close'].iloc[-1]:.2f}")
             st.metric("Volume (Avg)", f"{stock_data['Volume'].mean():,.0f}")
             st.markdown('</div>', unsafe_allow_html=True)
         
         with col2:
             st.markdown('<div class="metric-container">', unsafe_allow_html=True)
-            st.metric("Social Sentiment", 
-                     f"{sentiment_data['score']:.2f}" if sentiment_data else "N/A",
-                     delta=f"{sentiment_data['change']:.2%}" if sentiment_data else "")
-            st.metric("Recent News Tone", "Positive ▲" if (tweet_df['sentiment'].mean() > 0) else "Negative ▼" if tweet_df else "N/A")
+            # Add error handling for sentiment data
+            if sentiment_data:
+                st.metric("Social Sentiment", 
+                         f"{sentiment_data.get('score', 0):.2f}",
+                         delta=f"{sentiment_data.get('change', 0):.2%}")
+            else:
+                st.metric("Social Sentiment", "N/A")
+            
+            # Add null check for tweet_df
+            if tweet_df is not None and not tweet_df.empty:
+                avg_sentiment = tweet_df['sentiment'].mean()
+                sentiment_label = "Positive ▲" if avg_sentiment > 0 else "Negative ▼"
+                st.metric("Recent News Tone", sentiment_label)
+            else:
+                st.metric("Recent News Tone", "N/A")
             st.markdown('</div>', unsafe_allow_html=True)
         
         # Price Chart with Sentiment Overlay
@@ -206,15 +219,17 @@ if stock_data is not None:
                 })
                 st.bar_chart(sources.set_index('Source'))
 
-    with tab4:  # Social Feed
+    with tab4:
         if tweet_df is not None and not tweet_df.empty:
             st.subheader(f"Latest Social Discussions about ${ticker}")
             for _, tweet in tweet_df.iterrows():
-                sentiment_color = "#90EE90" if tweet['sentiment'] > 0 else "#FFCCCB" if tweet['sentiment'] < 0 else "#FFFFFF"
+                # Add null check for sentiment value
+                sentiment = tweet.get('sentiment', 0)
+                sentiment_color = "#90EE90" if sentiment > 0 else "#FFCCCB" if sentiment < 0 else "#FFFFFF"
                 st.markdown(f"""
                 <div style="border-left: 4px solid {sentiment_color}; padding: 8px; margin: 4px;">
-                    <b>@{tweet['username']}</b> · {tweet['date'].strftime('%Y-%m-%d %H:%M')}<br>
-                    {tweet['content']}
+                    <b>@{tweet.get('username', '')}</b> · {tweet.get('date', '').strftime('%Y-%m-%d %H:%M')}<br>
+                    {tweet.get('content', '')}
                 </div>
                 """, unsafe_allow_html=True)
         else:
