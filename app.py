@@ -41,7 +41,13 @@ STOCKGEIST_API_KEY = os.environ.get('STOCKGEIST_API_KEY')  # Get from stockgeist
 # Fetch Data Functions
 @st.cache_data
 def load_stock_data(ticker, period):
-    # ... (same as before)
+    try:
+        start_date = get_date_range(period)
+        stock_data = yf.download(ticker, start=start_date)
+        return stock_data
+    except Exception as e:
+        st.error(f"Error fetching data: {e}")
+        return None
 
 @st.cache_data
 def get_social_sentiment(ticker):
@@ -73,8 +79,26 @@ def get_recent_tweets(ticker, limit=15):
 
 # Technical Indicators (Enhanced)
 def calculate_technical_indicators(data, ta_options):
-    # ... (same SMA/RSI/MACD/Bollinger logic as before)
-    # Add Sentiment Score Column
+    if "SMA 50" in ta_options:
+        data['SMA_50'] = data['Close'].rolling(window=50).mean()
+    if "SMA 200" in ta_options:
+        data['SMA_200'] = data['Close'].rolling(window=200).mean()
+    if "RSI" in ta_options:
+        delta = data['Close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        data['RSI'] = 100 - (100 / (1 + rs))
+    if "MACD" in ta_options:
+        exp12 = data['Close'].ewm(span=12, adjust=False).mean()
+        exp26 = data['Close'].ewm(span=26, adjust=False).mean()
+        data['MACD'] = exp12 - exp26
+        data['Signal'] = data['MACD'].ewm(span=9, adjust=False).mean()
+    if "Bollinger Bands" in ta_options:
+        data['SMA_20'] = data['Close'].rolling(window=20).mean()
+        data['STD_20'] = data['Close'].rolling(window=20).std()
+        data['Upper Band'] = data['SMA_20'] + (data['STD_20'] * 2)
+        data['Lower Band'] = data['SMA_20'] - (data['STD_20'] * 2)
     if 'Close' in data:
         data['Price_Change'] = data['Close'].pct_change()
     return data
@@ -118,7 +142,39 @@ if stock_data is not None:
         st.plotly_chart(fig, use_container_width=True)
 
     with tab2:  # Technical Analysis
-        # ... (same technical charts as before)
+        st.subheader("Technical Indicators")
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=stock_data.index, y=stock_data['Close'], name='Close Price'))
+        
+        if "SMA 50" in ta_options:
+            fig.add_trace(go.Scatter(x=stock_data.index, y=stock_data['SMA_50'], name='SMA 50'))
+        if "SMA 200" in ta_options:
+            fig.add_trace(go.Scatter(x=stock_data.index, y=stock_data['SMA_200'], name='SMA 200'))
+        if "Bollinger Bands" in ta_options:
+            fig.add_trace(go.Scatter(x=stock_data.index, y=stock_data['Upper Band'], name='Upper Band'))
+            fig.add_trace(go.Scatter(x=stock_data.index, y=stock_data['Lower Band'], name='Lower Band'))
+        
+        fig.update_layout(title='Technical Indicators', 
+                        xaxis_title='Date', 
+                        yaxis_title='Price')
+        st.plotly_chart(fig, use_container_width=True)
+        
+        if "RSI" in ta_options:
+            st.subheader("Relative Strength Index (RSI)")
+            rsi_fig = go.Figure()
+            rsi_fig.add_trace(go.Scatter(x=stock_data.index, y=stock_data['RSI'], name='RSI'))
+            rsi_fig.add_hline(y=30, line_dash="dash", line_color="green")
+            rsi_fig.add_hline(y=70, line_dash="dash", line_color="red")
+            rsi_fig.update_layout(yaxis_range=[0,100])
+            st.plotly_chart(rsi_fig, use_container_width=True)
+        
+        if "MACD" in ta_options:
+            st.subheader("MACD")
+            macd_fig = go.Figure()
+            macd_fig.add_trace(go.Scatter(x=stock_data.index, y=stock_data['MACD'], name='MACD'))
+            macd_fig.add_trace(go.Scatter(x=stock_data.index, y=stock_data['Signal'], name='Signal'))
+            st.plotly_chart(macd_fig, use_container_width=True)
+    
 
     with tab3:  # Sentiment Analysis
         if sentiment_data:
