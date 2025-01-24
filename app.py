@@ -7,6 +7,7 @@ from prophet.plot import plot_plotly
 from datetime import datetime, timedelta
 import requests
 from textblob import TextBlob
+import os
 import snscrape.modules.twitter as sntwitter  # Free alternative to Twitter API
 
 # Page Configuration
